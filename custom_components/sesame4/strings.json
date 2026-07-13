@@ -1,0 +1,33 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Add Sesame 4 Lock",
+                "description": "Select your Sesame device from the discovered list.",
+                "data": {
+                    "address": "Device"
+                }
+            },
+            "secret": {
+                "title": "Secret Key",
+                "description": "Enter the 16-byte hex secret key for: {device}",
+                "data": {
+                    "secret_key": "Secret Key (32 hex characters)"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to the device. Check that it is in range.",
+            "timeout": "Connection timed out. Make sure the device is nearby and powered on.",
+            "invalid_key_length": "Secret key must be exactly 32 hex characters (16 bytes).",
+            "invalid_hex": "Secret key must contain only hex characters (0-9, a-f).",
+            "scan_failed": "Bluetooth scan failed. Check your Bluetooth adapter.",
+            "unknown": "An unexpected error occurred."
+        },
+        "abort": {
+            "no_devices_found": "No Sesame devices found. Make sure your lock is nearby and has Bluetooth enabled.",
+            "not_supported": "This device is not a supported Sesame model.",
+            "not_registered": "This device has not been set up. Please configure it using the official Sesame app first."
+        }
+    }
+}
