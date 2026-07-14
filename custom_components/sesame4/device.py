@@ -101,8 +101,6 @@ class Sesame4Device:
         from bleak_retry_connector import establish_connection
         from homeassistant.components.bluetooth import async_ble_device_from_address
 
-        await self.disconnect()
-
         self._state = STATE_CONNECTING
         LOGGER.debug("Connecting to %s", self._address)
 
