@@ -174,7 +174,7 @@ class SesameBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if not errors and self._selected_device is not None:
                 return self.async_create_entry(
-                    title=self._selected_device.get("name", "Sesame BLE"),
+                    title=self._selected_device["name"],
                     data={
                         CONF_ADDRESS: self._selected_device[CONF_ADDRESS],
                         CONF_DEVICE_ID: self._selected_device[CONF_DEVICE_ID],
