@@ -7,7 +7,7 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Callable, Optional
 
-from .const import CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
+from .const import CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL, LOGIN_TIMEOUT
 from .device import SesameDevice
 from .helpers import CHSesame2MechSettings, CHSesame2MechStatus
 
@@ -91,7 +91,7 @@ class SesameCoordinator:
             LOGGER.debug("ensure_connected: connecting fresh")
             try:
                 await self._device.connect_and_login()
-                await asyncio.wait_for(self._device.login(), timeout=15.0)
+                await asyncio.wait_for(self._device.login(), timeout=LOGIN_TIMEOUT)
                 self._failure_count = 0
                 self._set_available()
             except Exception:
@@ -105,7 +105,7 @@ class SesameCoordinator:
 
     async def initial_connect(self) -> None:
         await self._device.connect_and_login()
-        await asyncio.wait_for(self._device.login(), timeout=15.0)
+        await asyncio.wait_for(self._device.login(), timeout=LOGIN_TIMEOUT)
 
     async def lock(self, tag: str = "HA") -> None:
         await self._ensure_connected()

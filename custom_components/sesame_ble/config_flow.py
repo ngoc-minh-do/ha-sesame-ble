@@ -28,6 +28,7 @@ from .const import (
     CONF_REFRESH_INTERVAL,
     CONF_SECRET_KEY,
     DEFAULT_REFRESH_INTERVAL,
+    LOGIN_TIMEOUT,
     DOMAIN,
     SERVICE_UUID,
 )
@@ -208,7 +209,7 @@ class SesameBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             await device.connect_and_login()
-            await asyncio.wait_for(device.login(), timeout=15.0)
+            await asyncio.wait_for(device.login(), timeout=LOGIN_TIMEOUT)
         except asyncio.TimeoutError:
             errors["base"] = "timeout"
         except Exception:
