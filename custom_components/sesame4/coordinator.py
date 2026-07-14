@@ -135,6 +135,7 @@ class Sesame4Coordinator:
             CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
         )
         if interval_minutes == 0:
+            LOGGER.info("Periodic refresh disabled")
             return
 
         interval = timedelta(minutes=interval_minutes)
@@ -146,6 +147,13 @@ class Sesame4Coordinator:
             self._hass, _refresh, interval
         )
         LOGGER.info("Periodic refresh every %d minutes", interval_minutes)
+
+    def restart_periodic_refresh(self) -> None:
+        LOGGER.info("Options changed, restarting periodic refresh")
+        if self._refresh_cancel is not None:
+            self._refresh_cancel()
+            self._refresh_cancel = None
+        self.start_periodic_refresh()
 
     async def shutdown(self) -> None:
         if self._refresh_cancel is not None:

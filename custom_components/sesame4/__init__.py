@@ -42,6 +42,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     coordinator.start_periodic_refresh()
 
+    async def _update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+        coordinator.restart_periodic_refresh()
+
+    entry.async_on_unload(entry.add_update_listener(_update_options))
+
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
