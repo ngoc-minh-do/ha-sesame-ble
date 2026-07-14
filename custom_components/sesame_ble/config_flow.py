@@ -80,7 +80,7 @@ def _parse_discovery(
         )
         return None
 
-    LOGGER.info("BLE scan: found %s - %s", name, model.displayName)
+    LOGGER.debug("BLE scan: found %s - %s", name, model.displayName)
     return {
         CONF_ADDRESS: adv.address,
         CONF_DEVICE_ID: str(adv.deviceId) if adv.deviceId else adv.address,
@@ -213,7 +213,7 @@ class SesameBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except asyncio.TimeoutError:
             errors["base"] = "timeout"
         except Exception:
-            LOGGER.exception("Connection test failed")
+            LOGGER.exception("Connection test failed for %s", address)
             errors["base"] = "cannot_connect"
         finally:
             await device.disconnect()
