@@ -29,5 +29,15 @@
             "not_supported": "This device is not a supported Sesame model.",
             "not_registered": "This device has not been set up. Please configure it using the official Sesame app first."
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Sesame 4 Options",
+                "data": {
+                    "refresh_interval": "Background refresh interval"
+                }
+            }
+        }
     }
 }

@@ -21,11 +21,72 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from .const import CONF_DEVICE_ID, CONF_MODEL, CONF_PUBLIC_KEY, CONF_SECRET_KEY, DOMAIN, SERVICE_UUID
+from .const import (
+    CONF_DEVICE_ID,
+    CONF_MODEL,
+    CONF_PUBLIC_KEY,
+    CONF_REFRESH_INTERVAL,
+    CONF_SECRET_KEY,
+    DEFAULT_REFRESH_INTERVAL,
+    DOMAIN,
+    SERVICE_UUID,
+)
 from .device import Sesame4Device
 from .helpers import CHProductModel, BLEAdvertisement, decode_sk
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _parse_discovery(
+    discovery_info: BluetoothServiceInfoBleak,
+) -> dict[str, Any] | None:
+    name = discovery_info.device.name or "(no name)"
+
+    if SERVICE_UUID not in discovery_info.advertisement.service_uuids:
+        LOGGER.debug("BLE scan: skipping %s - service UUID not present", name)
+        return None
+
+    manufacturer_data = discovery_info.advertisement.manufacturer_data
+    if not manufacturer_data:
+        LOGGER.debug("BLE scan: skipping %s - no manufacturer data", name)
+        return None
+
+    try:
+        adv = BLEAdvertisement(
+            discovery_info.device,
+            manufacturer_data,
+            discovery_info.rssi,
+        )
+    except Exception as exc:
+        LOGGER.warning(
+            "BLE scan: failed to parse BLE advertisement for %s: %s",
+            name,
+            exc,
+        )
+        return None
+
+    if not adv.isRegistered:
+        LOGGER.debug("BLE scan: skipping %s - not registered", name)
+        return None
+
+    try:
+        model = CHProductModel.getByValue(adv.productType)
+    except NotImplementedError:
+        LOGGER.debug(
+            "BLE scan: skipping %s - unsupported productType %s",
+            name,
+            adv.productType,
+        )
+        return None
+
+    LOGGER.info("BLE scan: found %s - %s", name, model.displayName)
+    return {
+        CONF_ADDRESS: adv.address,
+        CONF_DEVICE_ID: str(adv.deviceId) if adv.deviceId else adv.address,
+        CONF_MODEL: model.displayName,
+        "name": f"{model.displayName} ({adv.address})",
+        "rssi": adv.rssi,
+    }
 
 
 def _scan_sesame_devices(hass) -> list[dict[str, Any]]:
@@ -34,68 +95,9 @@ def _scan_sesame_devices(hass) -> list[dict[str, Any]]:
     LOGGER.debug("BLE scan: %d total devices known to HA", len(all_ble))
 
     for discovery_info in all_ble:
-        svc_uuids = discovery_info.advertisement.service_uuids
-        name = discovery_info.device.name or "(no name)"
-        LOGGER.debug(
-            "BLE scan: checking %s (%s) svc_uuids=%s",
-            name, discovery_info.address, svc_uuids,
-        )
-
-        if SERVICE_UUID not in svc_uuids:
-            LOGGER.debug("BLE scan: skipping %s - service UUID not present", name)
-            continue
-
-        manufacturer_data = discovery_info.advertisement.manufacturer_data
-        if not manufacturer_data:
-            LOGGER.debug("BLE scan: skipping %s - no manufacturer data", name)
-            continue
-
-        LOGGER.debug(
-            "BLE scan: manufacturer_data for %s: %s",
-            name, {k: v.hex() for k, v in manufacturer_data.items()},
-        )
-
-        try:
-            adv = BLEAdvertisement(
-                discovery_info.device,
-                manufacturer_data,
-                discovery_info.rssi,
-            )
-        except Exception as exc:
-            LOGGER.warning(
-                "BLE scan: failed to parse BLE advertisement for %s: %s",
-                name, exc,
-            )
-            continue
-
-        LOGGER.debug(
-            "BLE scan: %s parsed - productType=%s registered=%s",
-            name, adv.productType, adv.isRegistered,
-        )
-
-        if not adv.isRegistered:
-            LOGGER.debug("BLE scan: skipping %s - not registered", name)
-            continue
-
-        try:
-            model = CHProductModel.getByValue(adv.productType)
-        except NotImplementedError:
-            LOGGER.debug(
-                "BLE scan: skipping %s - unsupported productType %s",
-                name, adv.productType,
-            )
-            continue
-
-        LOGGER.info("BLE scan: found %s - %s", name, model.displayName)
-        devices.append(
-            {
-                CONF_ADDRESS: adv.address,
-                CONF_DEVICE_ID: str(adv.deviceId) if adv.deviceId else adv.address,
-                CONF_MODEL: model.displayName,
-                "name": f"{model.displayName} ({adv.address})",
-                "rssi": adv.rssi,
-            }
-        )
+        result = _parse_discovery(discovery_info)
+        if result is not None:
+            devices.append(result)
 
     LOGGER.info("BLE scan: %d Sesame device(s) found", len(devices))
     return devices
@@ -127,10 +129,7 @@ class Sesame4ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         self._discovered_devices = {d[CONF_ADDRESS]: d for d in devices}
 
-        options = [
-            {"value": d[CONF_ADDRESS], "label": d["name"]}
-            for d in devices
-        ]
+        options = [{"value": d[CONF_ADDRESS], "label": d["name"]} for d in devices]
 
         data_schema = vol.Schema(
             {
@@ -226,33 +225,60 @@ class Sesame4ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
-        manufacturer_data = discovery_info.advertisement.manufacturer_data
-        if not manufacturer_data:
+        self._selected_device = _parse_discovery(discovery_info)
+        if self._selected_device is None:
             return self.async_abort(reason="not_supported")
-
-        try:
-            adv = BLEAdvertisement(
-                discovery_info.device,
-                manufacturer_data,
-                discovery_info.rssi,
-            )
-        except Exception:
-            return self.async_abort(reason="not_supported")
-
-        if not adv.isRegistered:
-            return self.async_abort(reason="not_registered")
-
-        try:
-            model = CHProductModel.getByValue(adv.productType)
-        except NotImplementedError:
-            return self.async_abort(reason="not_supported")
-
-        self._selected_device = {
-            CONF_ADDRESS: adv.address,
-            CONF_DEVICE_ID: str(adv.deviceId) if adv.deviceId else adv.address,
-            CONF_MODEL: model.displayName,
-            "name": f"{model.displayName} ({adv.address})",
-        }
 
         self.context["title_placeholders"] = {"name": self._selected_device["name"]}
         return await self.async_step_secret()
+
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        return Sesame4OptionsFlow(config_entry)
+
+
+class Sesame4OptionsFlow(config_entries.OptionsFlow):
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            return self.async_create_entry(
+                data={CONF_REFRESH_INTERVAL: int(user_input[CONF_REFRESH_INTERVAL])}
+            )
+
+        current = self._config_entry.options.get(
+            CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL
+        )
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_REFRESH_INTERVAL,
+                    default=str(current),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": "0", "label": "Disabled"},
+                            {"value": "5", "label": "5 min"},
+                            {"value": "10", "label": "10 min"},
+                            {"value": "30", "label": "30 min"},
+                            {"value": "60", "label": "60 min"},
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+            errors=errors,
+        )

@@ -8,7 +8,10 @@ CONF_ADDRESS = "address"
 CONF_DEVICE_ID = "device_id"
 CONF_SECRET_KEY = "secret_key"
 CONF_PUBLIC_KEY = "public_key"
+CONF_REFRESH_INTERVAL = "refresh_interval"
 CONF_MODEL = "model"
+
+DEFAULT_REFRESH_INTERVAL = 0
 
 SERVICE_UUID = "0000fd81-0000-1000-8000-00805f9b34fb"
 TX_UUID = "16860002-a5ae-9856-b6d3-dbb4c676993e"

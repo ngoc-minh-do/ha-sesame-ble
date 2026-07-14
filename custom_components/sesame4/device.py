@@ -65,8 +65,6 @@ class Sesame4Device:
         self._callbacks: list[Callable[[], None]] = []
         self._lock = asyncio.Lock()
         self._logged_in = asyncio.Event()
-        self._reconnect_task: Optional[asyncio.Task] = None
-        self._shutting_down = False
 
     @property
     def address(self) -> str:
@@ -83,10 +81,6 @@ class Sesame4Device:
     @property
     def mech_settings(self) -> Optional[CHSesame2MechSettings]:
         return self._mech_settings
-
-    @property
-    def is_connected(self) -> bool:
-        return self._state == STATE_READY
 
     def add_update_callback(self, callback: Callable[[], None]) -> None:
         self._callbacks.append(callback)
@@ -107,6 +101,8 @@ class Sesame4Device:
         from bleak_retry_connector import establish_connection
         from homeassistant.components.bluetooth import async_ble_device_from_address
 
+        await self.disconnect()
+
         self._state = STATE_CONNECTING
         LOGGER.debug("Connecting to %s", self._address)
 
@@ -121,7 +117,7 @@ class Sesame4Device:
             max_attempts=3,
         )
 
-        LOGGER.info("Connected to %s", self._address)
+        LOGGER.debug("Connected to %s", self._address)
         self._state = STATE_LOGIN
 
         for service in self._client.services:
@@ -135,40 +131,13 @@ class Sesame4Device:
             raise RuntimeError("Sesame service not found on device")
 
     def _on_disconnect(self, client) -> None:
-        LOGGER.warning("Disconnected from %s", self._address)
+        LOGGER.debug("BLE transport dropped by %s", self._address)
         self._state = STATE_DISCONNECTED
         self._logged_in.clear()
         self._cipher = None
         self._sesame_token = None
         self._rx_buffer = BleReceiver()
         self._notify_update()
-        if not self._shutting_down:
-            self._schedule_reconnect()
-
-    def _schedule_reconnect(self) -> None:
-        if self._reconnect_task is not None and not self._reconnect_task.done():
-            return
-        self._reconnect_task = self._hass.async_create_background_task(
-            self._reconnect(),
-            f"sesame4_reconnect_{self._address}",
-        )
-
-    async def _reconnect(self) -> None:
-        for attempt in range(10):
-            delay = min(2 ** attempt, 60)
-            LOGGER.info("Reconnect attempt %d in %ds", attempt + 1, delay)
-            await asyncio.sleep(delay)
-            if self._shutting_down:
-                return
-            try:
-                await self.connect_and_login()
-                await asyncio.wait_for(self._logged_in.wait(), timeout=15.0)
-                LOGGER.info("Reconnected to %s", self._address)
-                return
-            except Exception:
-                LOGGER.warning(
-                    "Reconnect attempt %d failed", attempt + 1)
-        LOGGER.error("Failed to reconnect after 10 attempts")
 
     async def _transmit(self) -> None:
         if self._tx_buffer is None:
@@ -195,7 +164,8 @@ class Sesame4Device:
         async with self._lock:
             if self._state == STATE_READY:
                 return
-            await self._do_login(remote_pubkey)
+            if self._sesame_token is None:
+                await self._do_login(remote_pubkey)
             await self._logged_in.wait()
 
     async def _do_login(self, remote_pubkey: Optional[bytes] = None) -> None:
@@ -243,10 +213,7 @@ class Sesame4Device:
             try:
                 notify = BleNotify(self._cipher.decrypt(rawdata))
             except InvalidTag:
-                LOGGER.warning("Cipher stale, reconnecting")
-                await self._client.disconnect()
-                await self.connect_and_login()
-                await self.login()
+                LOGGER.debug("Skipping stale encrypted notification")
                 return
         else:
             return
@@ -260,13 +227,16 @@ class Sesame4Device:
 
     async def _handle_publish(self, publish: BlePublish) -> None:
         if publish.cmdItCode == BleItemCode.initial:
+            if self._sesame_token is not None:
+                return
             self._sesame_token = publish.payload
             LOGGER.debug("Received sesame token, logging in")
             await self._do_login()
         elif publish.cmdItCode == BleItemCode.mechStatus:
+            last_locked = self._mech_status.isLocked() if self._mech_status else None
             self._mech_status = CHSesame2MechStatus(rawdata=publish.payload)
-            LOGGER.debug("Mech status: locked=%s, battery=%s%%",
-                         self._mech_status.isLocked(), self._mech_status.getBatteryPercentage())
+            if self._mech_status.isLocked() != last_locked:
+                LOGGER.debug("isLocked: %s", self._mech_status.isLocked())
             self._notify_update()
         elif publish.cmdItCode == BleItemCode.mechSetting:
             self._mech_settings = CHSesame2MechSettings(rawdata=publish.payload)
@@ -287,7 +257,8 @@ class Sesame4Device:
             self._state = STATE_READY
             self._logged_in.set()
 
-            LOGGER.info("Logged in to %s", self._address)
+            LOGGER.info("Logged in to %s: locked=%s battery=%s%%",
+                       self._address, mech_status.isLocked(), mech_status.getBatteryPercentage())
             self._notify_update()
         elif (
             response.cmdItCode == BleItemCode.login
@@ -299,26 +270,20 @@ class Sesame4Device:
             self._notify_update()
 
     async def lock(self, tag: str = "HA") -> None:
-        if not self.is_connected:
-            raise RuntimeError("Device not connected")
-        LOGGER.info("Locking %s", self._address)
         await self._send_command(
             BlePayload(BleOpCode.async_, BleItemCode.lock, create_htag(tag)),
             BleCommunicationType.ciphertext,
         )
+        LOGGER.debug("Locking %s", self._address)
 
     async def unlock(self, tag: str = "HA") -> None:
-        if not self.is_connected:
-            raise RuntimeError("Device not connected")
-        LOGGER.info("Unlocking %s", self._address)
         await self._send_command(
             BlePayload(BleOpCode.async_, BleItemCode.unlock, create_htag(tag)),
             BleCommunicationType.ciphertext,
         )
+        LOGGER.debug("Unlocking %s", self._address)
 
     async def toggle(self, tag: str = "HA") -> None:
-        if not self.is_connected:
-            raise RuntimeError("Device not connected")
         if self._mech_status is None:
             raise RuntimeError("Status unknown")
         if self._mech_status.isInLockRange():
@@ -327,9 +292,6 @@ class Sesame4Device:
             await self.lock(tag)
 
     async def disconnect(self) -> None:
-        self._shutting_down = True
-        if self._reconnect_task is not None and not self._reconnect_task.done():
-            self._reconnect_task.cancel()
         if self._client and self._client.is_connected:
             try:
                 await self._client.stop_notify(RX_UUID)
@@ -341,4 +303,4 @@ class Sesame4Device:
                 pass
         self._state = STATE_DISCONNECTED
         self._logged_in.clear()
-        LOGGER.info("Disconnected from %s", self._address)
+        LOGGER.debug("Disconnected from %s", self._address)

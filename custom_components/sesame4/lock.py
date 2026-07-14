@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from .device import Sesame4Device
+from .coordinator import Sesame4Coordinator
 
 
 async def async_setup_entry(
@@ -18,19 +18,19 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    device: Sesame4Device = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([Sesame4Lock(device, entry)])
+    coordinator: Sesame4Coordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([Sesame4Lock(coordinator, entry)])
 
 
 class Sesame4Lock(LockEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, device: Sesame4Device, entry: ConfigEntry) -> None:
-        self._device = device
+    def __init__(self, coordinator: Sesame4Coordinator, entry: ConfigEntry) -> None:
+        self._coordinator = coordinator
         self._entry = entry
-        self._attr_unique_id = f"{device.address}_lock"
+        self._attr_unique_id = f"{coordinator.address}_lock"
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, device.address)},
+            "identifiers": {(DOMAIN, coordinator.address)},
             "name": "Sesame 4 Lock",
             "manufacturer": "CANDY HOUSE",
             "model": entry.data.get("model", "Sesame 4"),
@@ -39,51 +39,51 @@ class Sesame4Lock(LockEntity):
 
     @property
     def available(self) -> bool:
-        return self._device.is_connected
+        return self._coordinator.available
 
     @property
     def is_locked(self) -> bool | None:
-        status = self._device.mech_status
+        status = self._coordinator.mech_status
         if status is None:
             return None
         return status.isLocked()
 
     @property
     def is_locking(self) -> bool:
-        status = self._device.mech_status
+        status = self._coordinator.mech_status
         if status is None:
             return False
         target = status.getTarget()
-        settings = self._device.mech_settings
+        settings = self._coordinator.mech_settings
         if settings is None:
             return False
         return target == settings.getLockPosition() and not status.isInLockRange()
 
     @property
     def is_unlocking(self) -> bool:
-        status = self._device.mech_status
+        status = self._coordinator.mech_status
         if status is None:
             return False
         target = status.getTarget()
-        settings = self._device.mech_settings
+        settings = self._coordinator.mech_settings
         if settings is None:
             return False
         return target == settings.getUnlockPosition() and not status.isInUnlockRange()
 
     async def async_lock(self, **kwargs: Any) -> None:
-        await self._device.lock()
+        await self._coordinator.lock()
 
     async def async_unlock(self, **kwargs: Any) -> None:
-        await self._device.unlock()
+        await self._coordinator.unlock()
 
     @callback
-    def _on_device_update(self) -> None:
+    def _on_coordinator_update(self) -> None:
         self.async_schedule_update_ha_state()
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self._device.add_update_callback(self._on_device_update)
+        self._coordinator.add_update_callback(self._on_coordinator_update)
 
     async def async_will_remove_from_hass(self) -> None:
-        self._device.remove_update_callback(self._on_device_update)
+        self._coordinator.remove_update_callback(self._on_coordinator_update)
         await super().async_will_remove_from_hass()

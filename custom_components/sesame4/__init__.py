@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -11,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import CONF_PUBLIC_KEY, CONF_SECRET_KEY, DOMAIN
+from .coordinator import Sesame4Coordinator
 from .device import Sesame4Device
 
 LOGGER = logging.getLogger(__name__)
@@ -31,15 +31,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass=hass,
     )
 
+    coordinator = Sesame4Coordinator(hass, entry, device)
+
     try:
-        await device.connect_and_login()
-        await asyncio.wait_for(device.login(), timeout=15.0)
+        await coordinator.initial_connect()
     except Exception as err:
         LOGGER.exception("Failed to connect to Sesame 4")
-        await device.disconnect()
+        await coordinator.shutdown()
         raise ConfigEntryNotReady from err
 
-    hass.data[DOMAIN][entry.entry_id] = device
+    coordinator.start_periodic_refresh()
+
+    hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -50,8 +53,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        device: Sesame4Device | None = hass.data[DOMAIN].pop(entry.entry_id, None)
-        if device:
-            await device.disconnect()
+        coordinator: Sesame4Coordinator | None = hass.data[DOMAIN].pop(
+            entry.entry_id, None
+        )
+        if coordinator:
+            await coordinator.shutdown()
 
     return unload_ok
