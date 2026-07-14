@@ -9,8 +9,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DEFAULT_MODEL_NAME, DOMAIN
+from .const import DOMAIN
 from .coordinator import SesameCoordinator
+from .helpers import get_device_info
 
 
 async def async_setup_entry(
@@ -29,12 +30,7 @@ class SesameBleLock(LockEntity):
         self._coordinator = coordinator
         self._entry = entry
         self._attr_unique_id = f"{coordinator.address}_lock"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, coordinator.address)},
-            "name": "Sesame BLE Lock",
-            "manufacturer": "CANDY HOUSE",
-            "model": entry.data.get("model", DEFAULT_MODEL_NAME),
-        }
+        self._attr_device_info = get_device_info(coordinator, entry)
         self._attr_name = "Lock"
 
     @property

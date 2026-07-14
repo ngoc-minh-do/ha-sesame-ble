@@ -1,4 +1,4 @@
-"""Protocol helpers: mech status, BLE packet framing, product model."""
+"""Protocol helpers: mech status, BLE packet framing, product model, device info."""
 
 import base64
 import uuid
@@ -10,6 +10,8 @@ from .const import (
     BleItemCode,
     BleOpCode,
     BlePacketType,
+    CONF_MODEL,
+    DOMAIN,
 )
 
 
@@ -323,3 +325,14 @@ def decode_sk(sk_base64: str) -> tuple[str, str]:
     secret = data[1:17].hex()
     pubkey = data[17:81].hex()
     return secret, pubkey
+
+
+def get_device_info(coordinator, entry):
+    from homeassistant.helpers.device_registry import DeviceInfo
+
+    return DeviceInfo(
+        identifiers={(DOMAIN, coordinator.address)},
+        name="Sesame BLE Lock",
+        manufacturer="CANDY HOUSE",
+        model=entry.data[CONF_MODEL],
+    )
