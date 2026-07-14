@@ -14,6 +14,7 @@ from homeassistant.components.bluetooth import (
     async_discovered_service_info,
 )
 from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import (
     SelectSelector,
@@ -90,7 +91,7 @@ def _parse_discovery(
     }
 
 
-def _scan_sesame_devices(hass) -> list[dict[str, Any]]:
+def _scan_sesame_devices(hass: HomeAssistant) -> list[dict[str, Any]]:
     devices: list[dict[str, Any]] = []
     all_ble = list(async_discovered_service_info(hass))
     LOGGER.debug("BLE scan: %d total devices known to HA", len(all_ble))

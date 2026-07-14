@@ -12,6 +12,7 @@ from cryptography.hazmat.primitives.ciphers import algorithms
 from cryptography.exceptions import InvalidTag
 
 if TYPE_CHECKING:
+    from bleak import BleakClient
     from homeassistant.core import HomeAssistant
 
 from .const import (
@@ -137,7 +138,7 @@ class SesameDevice:
         else:
             raise RuntimeError("Sesame service not found on device")
 
-    def _on_disconnect(self, client) -> None:
+    def _on_disconnect(self, client: BleakClient) -> None:
         LOGGER.debug("BLE transport dropped by %s", self._address)
         self._state = STATE_DISCONNECTED
         self._logged_in.clear()

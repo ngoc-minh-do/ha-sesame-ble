@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Callable, Optional
 
 from .const import CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL, LOGIN_TIMEOUT
@@ -137,7 +137,7 @@ class SesameCoordinator:
 
         interval = timedelta(minutes=interval_minutes)
 
-        async def _refresh(now=None) -> None:
+        async def _refresh(now: datetime | None = None) -> None:
             await self.refresh_status()
 
         self._refresh_cancel = async_track_time_interval(

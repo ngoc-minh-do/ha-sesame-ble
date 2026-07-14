@@ -2,7 +2,7 @@
 
 import base64
 import uuid
-from typing import Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 from .const import (
     BleCmdResultCode,
@@ -13,6 +13,12 @@ from .const import (
     CONF_MODEL,
     DOMAIN,
 )
+
+if TYPE_CHECKING:
+    from bleak.backends.device import BLEDevice
+    from homeassistant.config_entries import ConfigEntry
+
+    from .coordinator import SesameCoordinator
 
 
 class CHSesame2MechStatus:
@@ -145,7 +151,7 @@ class CHProductModel:
 
 
 class BLEAdvertisement:
-    def __init__(self, dev, manufacturer_data: dict, rssi: int = -100) -> None:
+    def __init__(self, dev: BLEDevice, manufacturer_data: dict, rssi: int = -100) -> None:
         self._address = dev.address
         self._device = dev
         self._rssi = rssi
@@ -327,7 +333,7 @@ def decode_sk(sk_base64: str) -> tuple[str, str]:
     return secret, pubkey
 
 
-def get_device_info(coordinator, entry):
+def get_device_info(coordinator: SesameCoordinator, entry: ConfigEntry):
     from homeassistant.helpers.device_registry import DeviceInfo
 
     return DeviceInfo(
