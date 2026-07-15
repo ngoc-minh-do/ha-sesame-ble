@@ -11,6 +11,7 @@ dev = [
     "bleak>=3.0.2",
     "bleak-retry-connector>=4.6.1",
     "homeassistant>=2026.2.3",
+    "pre-commit>=4.6.0",
     "pyright>=1.1.411",
     "ruff>=0.15.21",
 ]
