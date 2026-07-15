@@ -33,8 +33,12 @@ class CHSesame2MechStatus:
         self._data = data
         self._batteryVoltage = int.from_bytes(data[0:2], "little") * 7.2 / 1023
         _raw_target = int.from_bytes(data[2:4], "little", signed=True)
-        self._target: Optional[int] = None if _raw_target == -32768 else int(_raw_target * 360 / 1024)
-        self._position = int(int.from_bytes(data[4:6], "little", signed=True) * 360 / 1024)
+        self._target: Optional[int] = (
+            None if _raw_target == -32768 else int(_raw_target * 360 / 1024)
+        )
+        self._position = int(
+            int.from_bytes(data[4:6], "little", signed=True) * 360 / 1024
+        )
         self._retcode = data[6]
         self._isInLockRange = (data[7] & 2) != 0
         self._isInUnlockRange = (data[7] & 4) != 0
@@ -95,8 +99,12 @@ class CHSesame2MechSettings:
         else:
             raise TypeError("Invalid mech settings data")
 
-        self._lockPosition = int(int.from_bytes(data[0:2], "little", signed=True) * 360 / 1024)
-        self._unlockPosition = int(int.from_bytes(data[2:4], "little", signed=True) * 360 / 1024)
+        self._lockPosition = int(
+            int.from_bytes(data[0:2], "little", signed=True) * 360 / 1024
+        )
+        self._unlockPosition = int(
+            int.from_bytes(data[2:4], "little", signed=True) * 360 / 1024
+        )
 
     @property
     def isConfigured(self) -> bool:
@@ -147,11 +155,15 @@ class CHProductModel:
 
     @property
     def displayName(self) -> str:
-        return self._name_map.get(self._product_type, f"Sesame (type {self._product_type})")
+        return self._name_map.get(
+            self._product_type, f"Sesame (type {self._product_type})"
+        )
 
 
 class BLEAdvertisement:
-    def __init__(self, dev: BLEDevice, manufacturer_data: dict, rssi: int = -100) -> None:
+    def __init__(
+        self, dev: BLEDevice, manufacturer_data: dict, rssi: int = -100
+    ) -> None:
         self._address = dev.address
         self._device = dev
         self._rssi = rssi
@@ -165,9 +177,7 @@ class BLEAdvertisement:
             )
         else:
             try:
-                self._deviceId = uuid.UUID(
-                    bytes=base64.b64decode(dev.name + "==")
-                )
+                self._deviceId = uuid.UUID(bytes=base64.b64decode(dev.name + "=="))
             except Exception:
                 self._deviceId = None
 
@@ -208,9 +218,7 @@ class BleTransmitter:
 
     def __init__(self, segment_type: BleCommunicationType, data: bytes) -> None:
         self._segment_type = segment_type
-        self._chunks = [
-            data[i : i + self.MTU] for i in range(0, len(data), self.MTU)
-        ]
+        self._chunks = [data[i : i + self.MTU] for i in range(0, len(data), self.MTU)]
         self._is_first = True
 
     def getChunk(self) -> Optional[bytes]:
@@ -226,7 +234,11 @@ class BleTransmitter:
         else:
             packet_type = BlePacketType.NotStart
 
-        comm_bits = self._segment_type.value if remaining == 0 else BlePacketType.APPEND_ONLY.value
+        comm_bits = (
+            self._segment_type.value
+            if remaining == 0
+            else BlePacketType.APPEND_ONLY.value
+        )
 
         header = bytes([packet_type.value | (comm_bits << 1)])
         return header + chunk
@@ -236,7 +248,9 @@ class BleReceiver:
     def __init__(self) -> None:
         self._buffer = bytearray()
 
-    def feed(self, data: bytes) -> Tuple[Optional[BleCommunicationType], Optional[bytes]]:
+    def feed(
+        self, data: bytes
+    ) -> Tuple[Optional[BleCommunicationType], Optional[bytes]]:
         header = data[0]
         is_start = header & 1
         comm_type = header >> 1
@@ -325,9 +339,7 @@ class BleResponse:
 def decode_sk(sk_base64: str) -> tuple[str, str]:
     data = base64.b64decode(sk_base64)
     if len(data) < 81:
-        raise ValueError(
-            f"SK data too short: {len(data)} bytes, expected at least 81"
-        )
+        raise ValueError(f"SK data too short: {len(data)} bytes, expected at least 81")
     secret = data[1:17].hex()
     pubkey = data[17:81].hex()
     return secret, pubkey

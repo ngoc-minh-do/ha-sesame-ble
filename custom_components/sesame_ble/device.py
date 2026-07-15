@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Optional
 
 from cryptography.hazmat.primitives import cmac
@@ -46,7 +45,9 @@ STATE_READY = "ready"
 
 
 class SesameDevice:
-    def __init__(self, address: str, secret_key: str, public_key: str, hass: HomeAssistant) -> None:
+    def __init__(
+        self, address: str, secret_key: str, public_key: str, hass: HomeAssistant
+    ) -> None:
         self._address = address
         self._secret_key = bytes.fromhex(secret_key)
         self._sesame_pk: bytes = bytes.fromhex(public_key)
@@ -112,7 +113,12 @@ class SesameDevice:
         from homeassistant.components.bluetooth import async_ble_device_from_address
 
         self._state = STATE_CONNECTING
-        LOGGER.debug("Connecting to %s: is_connected=%s, stale=%s", self._address, self.is_connected, self.session_stale)
+        LOGGER.debug(
+            "Connecting to %s: is_connected=%s, stale=%s",
+            self._address,
+            self.is_connected,
+            self.session_stale,
+        )
 
         ble_device = async_ble_device_from_address(
             self._hass, self._address, connectable=True
@@ -269,8 +275,12 @@ class SesameDevice:
             self._state = STATE_READY
             self._logged_in.set()
 
-            LOGGER.info("Logged in to %s: locked=%s battery=%s%%",
-                       self._address, mech_status.isLocked(), mech_status.getBatteryPercentage())
+            LOGGER.info(
+                "Logged in to %s: locked=%s battery=%s%%",
+                self._address,
+                mech_status.isLocked(),
+                mech_status.getBatteryPercentage(),
+            )
             self._notify_update()
         elif (
             response.cmdItCode == BleItemCode.login

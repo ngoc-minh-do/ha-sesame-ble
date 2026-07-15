@@ -73,7 +73,9 @@ class SesameCoordinator(DataUpdateCoordinator[SesameState]):
         async with self._connection_lock:
             connected = self._device.is_connected
             stale = self._device.session_stale
-            LOGGER.debug("ensure_connected: is_connected=%s, stale=%s", connected, stale)
+            LOGGER.debug(
+                "ensure_connected: is_connected=%s, stale=%s", connected, stale
+            )
             if connected and not stale:
                 return
             LOGGER.debug("ensure_connected: connecting fresh")

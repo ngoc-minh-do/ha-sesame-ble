@@ -9,9 +9,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 
 class AppKey:
     def __new__(cls):
-        raise NotImplementedError(
-            "Use AppKeyFactory.get_instance() instead."
-        )
+        raise NotImplementedError("Use AppKeyFactory.get_instance() instead.")
 
     @classmethod
     def __private_new__(cls):
@@ -80,15 +78,11 @@ class BleCipher:
         nonce = header + self._session_token
         self._decryptCounter += 1
         aesccm = AESCCM(key=self._session_key, tag_length=4)
-        return aesccm.decrypt(
-            nonce=nonce, data=cipher_bytes, associated_data=b"\x00"
-        )
+        return aesccm.decrypt(nonce=nonce, data=cipher_bytes, associated_data=b"\x00")
 
     def encrypt(self, plain_bytes: bytes) -> bytes:
         header = (self._encryptCounter | 549755813888).to_bytes(5, "little")
         nonce = header + self._session_token
         self._encryptCounter += 1
         aesccm = AESCCM(key=self._session_key, tag_length=4)
-        return aesccm.encrypt(
-            nonce=nonce, data=plain_bytes, associated_data=b"\x00"
-        )
+        return aesccm.encrypt(nonce=nonce, data=plain_bytes, associated_data=b"\x00")

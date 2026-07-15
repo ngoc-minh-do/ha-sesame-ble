@@ -48,7 +48,10 @@ class SesameBleLock(CoordinatorEntity[SesameCoordinator], LockEntity):
         target = data.mech_status.getTarget()
         if data.mech_settings is None:
             return False
-        return target == data.mech_settings.getLockPosition() and not data.mech_status.isInLockRange()
+        return (
+            target == data.mech_settings.getLockPosition()
+            and not data.mech_status.isInLockRange()
+        )
 
     @property
     def is_unlocking(self) -> bool:
@@ -58,7 +61,10 @@ class SesameBleLock(CoordinatorEntity[SesameCoordinator], LockEntity):
         target = data.mech_status.getTarget()
         if data.mech_settings is None:
             return False
-        return target == data.mech_settings.getUnlockPosition() and not data.mech_status.isInUnlockRange()
+        return (
+            target == data.mech_settings.getUnlockPosition()
+            and not data.mech_status.isInUnlockRange()
+        )
 
     async def async_lock(self, **kwargs: Any) -> None:
         await self.coordinator.lock()
