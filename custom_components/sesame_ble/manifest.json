@@ -1,17 +1,17 @@
 {
     "domain": "sesame_ble",
     "name": "Sesame BLE",
-    "codeowners": ["@ngoc-minh-do"],
-    "issue_tracker": "https://github.com/ngoc-minh-do/ha-sesame-ble/issues",
-    "config_flow": true,
-    "dependencies": ["bluetooth"],
     "bluetooth": [
         {
             "service_uuid": "0000fd81-0000-1000-8000-00805f9b34fb"
         }
     ],
+    "codeowners": ["@ngoc-minh-do"],
+    "config_flow": true,
+    "dependencies": ["bluetooth"],
     "documentation": "https://github.com/ngoc-minh-do/ha-sesame-ble",
     "iot_class": "local_push",
+    "issue_tracker": "https://github.com/ngoc-minh-do/ha-sesame-ble/issues",
     "requirements": [
         "bleak",
         "bleak-retry-connector"
