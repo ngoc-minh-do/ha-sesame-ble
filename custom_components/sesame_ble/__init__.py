@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import CONF_PUBLIC_KEY, CONF_SECRET_KEY
+from .const import CONF_KEY_INDEX, CONF_PUBLIC_KEY, CONF_SECRET_KEY
 from .coordinator import SesameCoordinator
 from .device import SesameDevice
 
@@ -31,6 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SesameConfigEntry) -> bo
         address=entry.data[CONF_ADDRESS],
         secret_key=entry.data[CONF_SECRET_KEY],
         public_key=entry.data[CONF_PUBLIC_KEY],
+        key_index=entry.data[CONF_KEY_INDEX],
         hass=hass,
     )
 

@@ -24,6 +24,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_DEVICE_ID,
+    CONF_KEY_INDEX,
     CONF_MODEL,
     CONF_PUBLIC_KEY,
     CONF_REFRESH_INTERVAL,
@@ -161,7 +162,7 @@ class SesameBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             sk_value = user_input[CONF_SECRET_KEY].strip()
 
             try:
-                secret_hex, pubkey_hex = decode_sk(sk_value)
+                secret_hex, pubkey_hex, key_index_hex = decode_sk(sk_value)
             except Exception:
                 errors[CONF_SECRET_KEY] = "invalid_sk"
             else:
@@ -171,6 +172,7 @@ class SesameBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         device_info.get(CONF_ADDRESS, ""),
                         secret_hex,
                         pubkey_hex,
+                        key_index_hex,
                     )
 
             if not errors and self._selected_device is not None:
@@ -179,6 +181,7 @@ class SesameBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_ADDRESS: self._selected_device[CONF_ADDRESS],
                         CONF_DEVICE_ID: self._selected_device[CONF_DEVICE_ID],
+                        CONF_KEY_INDEX: key_index_hex,
                         CONF_SECRET_KEY: secret_hex,
                         CONF_PUBLIC_KEY: pubkey_hex,
                         CONF_MODEL: self._selected_device[CONF_MODEL],
@@ -205,10 +208,10 @@ class SesameBleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _test_connection(
-        self, address: str, secret_key: str, public_key: str
+        self, address: str, secret_key: str, public_key: str, key_index: str
     ) -> dict[str, str]:
         errors: dict[str, str] = {}
-        device = SesameDevice(address, secret_key, public_key, self.hass)
+        device = SesameDevice(address, secret_key, public_key, key_index, self.hass)
 
         try:
             await device.connect()

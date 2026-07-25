@@ -46,11 +46,17 @@ STATE_READY = "ready"
 
 class SesameDevice:
     def __init__(
-        self, address: str, secret_key: str, public_key: str, hass: HomeAssistant
+        self,
+        address: str,
+        secret_key: str,
+        public_key: str,
+        key_index: str,
+        hass: HomeAssistant,
     ) -> None:
         self._address = address
         self._secret_key = bytes.fromhex(secret_key)
         self._sesame_pk: bytes = bytes.fromhex(public_key)
+        self._key_index = bytes.fromhex(key_index)
         self._device_id: str | None = None
         self._hass = hass
 
@@ -198,7 +204,7 @@ class SesameDevice:
         tokens = local_token + self._sesame_token
 
         c = cmac.CMAC(algorithms.AES(self._secret_key))
-        c.update(b"\x00\x00" + local_pk + tokens)
+        c.update(self._key_index + local_pk + tokens)
         cmac_tag_response = c.finalize()[:4]
 
         c = cmac.CMAC(algorithms.AES(local_keys.ecdh(self._sesame_pk)[:16]))
@@ -206,7 +212,7 @@ class SesameDevice:
         cmac_tag = c.finalize()
 
         self._cipher = BleCipher(cmac_tag, tokens)
-        payload = b"\x00\x00" + local_pk + local_token + cmac_tag_response
+        payload = self._key_index + local_pk + local_token + cmac_tag_response
 
         LOGGER.debug("Sending login command")
         await self._send_command(
@@ -306,12 +312,11 @@ class SesameDevice:
         LOGGER.debug("Unlocking %s", self._address)
 
     async def toggle(self, tag: str = "HA") -> None:
-        if self._mech_status is None:
-            raise RuntimeError("Status unknown")
-        if self._mech_status.isInLockRange():
-            await self.unlock(tag)
-        else:
+        if self._mech_status is None or not self._mech_status.isInLockRange():
             await self.lock(tag)
+        else:
+            await self.unlock(tag)
+        LOGGER.debug("Toggling %s", self._address)
 
     async def disconnect(self) -> None:
         if self.is_connected:

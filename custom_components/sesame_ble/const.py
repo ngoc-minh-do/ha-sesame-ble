@@ -6,6 +6,7 @@ DOMAIN = "sesame_ble"
 
 CONF_ADDRESS = "address"
 CONF_DEVICE_ID = "device_id"
+CONF_KEY_INDEX = "key_index"
 CONF_SECRET_KEY = "secret_key"
 CONF_PUBLIC_KEY = "public_key"
 CONF_REFRESH_INTERVAL = "refresh_interval"

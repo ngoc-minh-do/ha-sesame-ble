@@ -123,7 +123,8 @@ class CHProductModel:
     _models = {
         0: {"deviceModel": "sesame_2", "isLocker": True},
         1: {"deviceModel": "wm_2", "isLocker": False},
-        2: {"deviceModel": "ssmbot_1", "isLocker": True},
+        2: {"deviceModel": "ssmbot_1", "isLocker": False},
+        3: {"deviceModel": "bike_1", "isLocker": True},
         4: {"deviceModel": "sesame_4", "isLocker": True},
     }
 
@@ -131,6 +132,7 @@ class CHProductModel:
         0: "Sesame 3",
         1: "Wifi Module 2",
         2: "Sesame Bot 1",
+        3: "Sesame Bike 1",
         4: "Sesame 4",
     }
 
@@ -338,13 +340,14 @@ class BleResponse:
         return self._payload
 
 
-def decode_sk(sk_base64: str) -> tuple[str, str]:
+def decode_sk(sk_base64: str) -> tuple[str, str, str]:
     data = base64.b64decode(sk_base64)
-    if len(data) < 81:
-        raise ValueError(f"SK data too short: {len(data)} bytes, expected at least 81")
+    if len(data) < 99:
+        raise ValueError(f"SK data too short: {len(data)} bytes, expected at least 99")
     secret = data[1:17].hex()
     pubkey = data[17:81].hex()
-    return secret, pubkey
+    key_index = data[81:83].hex()
+    return secret, pubkey, key_index
 
 
 def get_device_info(coordinator: SesameCoordinator, entry: ConfigEntry):
