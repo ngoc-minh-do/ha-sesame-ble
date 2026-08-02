@@ -1,3 +1,14 @@
+## v0.1.2 (2026-08-02)
+
+### Feat
+
+- add Makefile targets for test, precommit, and release
+- add commitizen for conventional commits
+
+### Fix
+
+- remove bleak deps from manifest.json requirements
+
 ## v0.1.1 (2026-07-26)
 
 ### Fix
